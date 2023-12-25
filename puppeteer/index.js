@@ -3,6 +3,8 @@ const puppeteer = require("puppeteer"),
   hbs = require("handlebars"),
   express = require("express"),
   app = express(),
+  path = require("path"),
+  util = require("util"),
   { PORT, CERTIFICATE_UPLOAD } = require("./config/env");
 
 app.use(express.static("./assets"));
@@ -12,21 +14,23 @@ app.listen(PORT, function (err) {
   console.log(`Webserver listening at http://localhost:${PORT}`);
 });
 
+const readFileAsync = util.promisify(fs.readFile);
+
 const getTemplate = async function (templateName, data) {
-  return new Promise((resolve, rejects) => {
-    fs.readFile(
-      process.cwd() + "/templates/" + `${templateName}/index.html`,
-      function (err, fileData) {
-        if (!err) {
-          const template = fileData.toString();
-          resolve(hbs.compile(template)(data));
-        } else {
-          logger.error(err.message);
-          rejects(err);
-        }
-      }
+  try {
+    const filePath = path.join(
+      process.cwd(),
+      "templates",
+      templateName,
+      "index.html"
     );
-  });
+    const fileData = await readFileAsync(filePath, "utf8");
+    const template = hbs.compile(fileData);
+    return template(data);
+  } catch (err) {
+    console.log(err.message);
+    throw err;
+  }
 };
 
 (async function () {
@@ -43,7 +47,7 @@ const getTemplate = async function (templateName, data) {
       projectName: "Flood in Nambia",
       certificateId: "lhjkijb75ukut4o782b",
       date: "July 18th, 2023",
-      host: `http://beta-api.greenuniverse.io`,
+      host: `http://localhost:${PORT}`,
     };
 
     const content = await getTemplate("newCerti", dataForPdf);
